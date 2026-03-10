@@ -7,8 +7,8 @@ Build a deterministic Python parser for METAR, SPECI, and TAF that outputs stabl
 Before changing parser logic, read all the files below, including all those in located in sub-directories of docs:
 - docs/SPEC.md
 - docs/metar_taf_rules.md
-- docs/aviation_weather_api/*
 - docs/How_to_Decode_METAR_TAF_and_pilot_reports.pdf
+- all relevant files under docs/aviation_weather_api/*
 
 ## Working rules
 - Do not invent weather fields not present in the raw report.
@@ -21,7 +21,7 @@ Before changing parser logic, read all the files below, including all those in l
 - Make the smallest safe change that satisfies the task.
 
 ## Validation
-- Run `python tests.py`
+- Run `python tests/tests.py`
 - If tests fail, fix the code and rerun until passing.
 
 ## When changing parser behavior
