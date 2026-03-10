@@ -101,42 +101,41 @@ The parser should produce structured JSON rather than prose. A top-level respons
 }
 ```
 
-See `SPEC.md` for the full parsing contract and expected field shapes.
+See `docs/SPEC.md` for the full parsing contract and expected field shapes.
 
 ## Repository Files
 
-This repository is expected to evolve around files such as:
+The current repository is organized around files such as:
 
-- `raw_metar_taf_parser.py` - parser implementation
-- `tests.py` - automated tests
-- `SPEC.md` - parser contract and v1 requirements
+- `parser/parser.py` - parser implementation
+- `tests/tests.py` - automated tests
+- `docs/SPEC.md` - parser contract and v1 requirements
 - `AGENTS.md` - agent guidance for Codex
-- sample input files for testing and parser validation
+- `samples/` - sample input files and reference data used for validation
 
 ## How To Run
 
-Run the parser with Python from the repository root.
+Run the parser from the repository root by importing the parser module.
 
-Example:
+Example bundle parse:
 
-```bash
-python raw_metar_taf_parser.py
+```python
+from parser.parser import parse_text
+
+raw = """METAR KBAD 092355Z AUTO 16004KT 10SM SCT080 26/21 A2993 RMK AO2
+
+TAF KBAD 092000Z 0920/1102 18010G15KT 9999 -SHRA VCTS OVC020CB QNH2993INS"""
+
+parsed = parse_text(raw)
+print(parsed["report_type"])
 ```
 
-If the parser exposes specific functions instead of a script entry point, import and call those functions from a Python shell or test file.
+If you want to parse a single report directly, import `parse_metar()` or `parse_taf()` from `parser/parser.py`.
 
 ## How To Test
 
-If the project uses a plain test script:
-
 ```bash
-python tests.py
-```
-
-If the test suite is later migrated to pytest:
-
-```bash
-python -m pytest -q
+python tests/tests.py
 ```
 
 ## Current Limitations
@@ -159,7 +158,7 @@ Unsupported tokens should be preserved rather than dropped.
 
 The intended workflow is:
 
-1. define parsing behavior in `SPEC.md`
+1. define parsing behavior in `docs/SPEC.md`
 2. implement deterministic parsing logic
 3. add or improve tests
 4. run tests and fix failures
