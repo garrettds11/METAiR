@@ -12,6 +12,7 @@ Build a v1 parser that:
 - preserves unsupported or unknown tokens instead of discarding them
 - outputs stable JSON structures
 - supports downstream plain-language explanation by an LLM without depending on the LLM for parsing
+- tolerates irregular whitespace and missing optional groups conservatively
 
 ## Supported Report Types
 
@@ -29,7 +30,8 @@ Build a v1 parser that:
 - issuance time
 - modifiers such as `AUTO` and `COR`
 - wind
-- visibility
+- visibility, including observed fractional `SM` forms and `P6SM`
+- runway visual range groups such as `R36/2400FT`, `R04L/0600V1000FT`, `R27/P6000FT`, and `R18/M0600FT`
 - present weather
 - sky conditions
 - temperature / dew point

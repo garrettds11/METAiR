@@ -121,6 +121,19 @@ A parsed METAR or SPECI should generally follow this shape:
     "unit": "SM",
     "qualifier": null
   },
+  "runway_visual_range": [
+    {
+      "raw": "R36/2400FT",
+      "runway_designator": "36",
+      "lower_value_ft": 2400,
+      "upper_value_ft": null,
+      "variable": false,
+      "qualifier": null,
+      "lower_qualifier": null,
+      "upper_qualifier": null,
+      "unit": "FT"
+    }
+  ],
   "weather": [],
   "sky": [
     {
@@ -165,6 +178,12 @@ Recommended additive fields include:
 - `peak_wind`
 - `wind_shift`
 
+### Runway Visual Range Structure
+When runway visual range groups are present in METAR or SPECI reports, the parser may return an additive `runway_visual_range` list. Each recognized entry should preserve the raw token and expose the runway designator, lower and upper values in feet, qualifier information, and unit.
+
+For single-value RVR forms, `qualifier` is the canonical qualifier field and both `lower_qualifier` and `upper_qualifier` should remain `null`.
+For variable RVR forms, `qualifier` should remain `null` and any bound-specific qualifiers should appear only in `lower_qualifier` or `upper_qualifier`.
+
 ### METAR / SPECI v1 Required Fields
 The parser should support these fields when present:
 
@@ -176,6 +195,7 @@ The parser should support these fields when present:
   - `COR`
 - wind
 - visibility
+- runway visual range groups such as `R36/2400FT`, `R04L/0600V1000FT`, `R27/P6000FT`, and `R18/M0600FT`
 - present weather
 - sky conditions
 - temperature / dew point

@@ -9,9 +9,16 @@ TIME_RE = re.compile(r'^\d{6}Z$')
 VALIDITY_RE = re.compile(r'^\d{4}/\d{4}$')
 
 WIND_RE = re.compile(r'^(?P<dir>\d{3}|VRB)(?P<speed>\d{2,3})(G(?P<gust>\d{2,3}))?(?P<unit>KT)$')
+RVR_RE = re.compile(
+    r'^R(?P<runway>\d{2}[LRC]?)/(?P<lower_qualifier>[MP])?(?P<lower>\d{4})'
+    r'(?:V(?P<upper_qualifier>[MP])?(?P<upper>\d{4}))?(?P<unit>FT)?$'
+)
 
-VIS_SM_RE = re.compile(r'^(?P<value>\d{1,2}(?:/\d)?|\d+\s\d/\d)SM$')
+VIS_SM_RE = re.compile(r'^(?P<qualifier>P)?(?P<value>\d{1,2}(?:/\d)?|\d+\s\d/\d)SM$')
+VIS_FRACTION_TOKEN_RE = re.compile(r'^\d/\dSM$')
 VIS_M_RE = re.compile(r'^\d{4}$')
+
+TAF_PREFIX_MODIFIERS = {"AMD", "COR", "CCA", "CCB"}
 
 TEMP_DEW_RE = re.compile(r'^(M?\d{2})/(M?\d{2})$')
 ALT_A_RE = re.compile(r'^A(\d{4})$')
@@ -138,6 +145,41 @@ def parse_wind(token: str) -> Optional[Dict[str, Any]]:
     }
 
 
+def parse_runway_visual_range(token: str) -> Optional[Dict[str, Any]]:
+    match = RVR_RE.match(token)
+    if not match:
+        return None
+
+    lower_qualifier = match.group("lower_qualifier")
+    upper_qualifier = match.group("upper_qualifier")
+    upper = match.group("upper")
+    variable = upper is not None
+
+    return {
+        "raw": token,
+        "runway_designator": match.group("runway"),
+        "lower_value_ft": int(match.group("lower")),
+        "upper_value_ft": int(upper) if upper else None,
+        "variable": variable,
+        "qualifier": lower_qualifier if not variable else None,
+        "lower_qualifier": lower_qualifier if variable else None,
+        "upper_qualifier": upper_qualifier if variable else None,
+        "unit": match.group("unit") or None,
+    }
+
+
+def parse_visibility_tokens(tokens: List[str], index: int) -> tuple[Optional[Dict[str, Any]], int]:
+    token = tokens[index]
+
+    if index + 1 < len(tokens) and token.isdigit() and VIS_FRACTION_TOKEN_RE.match(tokens[index + 1]):
+        combined = f"{token} {tokens[index + 1]}"
+        visibility = parse_visibility(combined)
+        if visibility:
+            return visibility, 2
+
+    return parse_visibility(token), 1
+
+
 def parse_visibility(token: str) -> Optional[Dict[str, Any]]:
     match = VIS_SM_RE.match(token)
     if match:
@@ -145,7 +187,7 @@ def parse_visibility(token: str) -> Optional[Dict[str, Any]]:
             "raw": token,
             "value": parse_sm_value(match.group("value")),
             "unit": "SM",
-            "qualifier": None,
+            "qualifier": match.group("qualifier"),
         }
     if token == "9999":
         return {"raw": token, "value_m": 9999, "meaning": "10km_or_more"}
@@ -367,6 +409,7 @@ def parse_metar(report: str) -> Dict[str, Any]:
         "modifier": None,
         "wind": None,
         "visibility": None,
+        "runway_visual_range": [],
         "weather": [],
         "sky": [],
         "temperature": None,
@@ -376,67 +419,89 @@ def parse_metar(report: str) -> Dict[str, Any]:
     }
 
     in_remarks = False
+    i = 0
 
-    for token in tokens:
+    while i < len(tokens):
+        token = tokens[i]
+
         if in_remarks:
             remark_tokens.append(token)
+            i += 1
             continue
 
         if out["type"] is None and token in ("METAR", "SPECI"):
             out["type"] = token
+            i += 1
             continue
 
         if out["station"] is None and ICAO_RE.match(token):
             out["station"] = token
+            i += 1
             continue
 
         if out["issued_at_utc"] is None and TIME_RE.match(token):
             out["issued_at_utc"] = token
+            i += 1
             continue
 
         if token in ("AUTO", "COR") and out["modifier"] is None:
             out["modifier"] = token
+            i += 1
             continue
 
         if out["wind"] is None:
             wind = parse_wind(token)
             if wind:
                 out["wind"] = wind
+                i += 1
                 continue
 
         if out["visibility"] is None:
-            visibility = parse_visibility(token)
+            visibility, consumed = parse_visibility_tokens(tokens, i)
             if visibility:
                 out["visibility"] = visibility
+                i += consumed
                 continue
+
+        runway_visual_range = parse_runway_visual_range(token)
+        if runway_visual_range:
+            out["runway_visual_range"].append(runway_visual_range)
+            i += 1
+            continue
 
         weather = parse_weather(token)
         if weather:
             out["weather"].append(weather)
+            i += 1
             continue
 
         sky = parse_sky(token)
         if sky:
             out["sky"].append(sky)
+            i += 1
             continue
 
         if out["temperature"] is None:
             temp_dew = parse_temp_dew(token)
             if temp_dew:
                 out["temperature"] = temp_dew
+                i += 1
                 continue
 
         if out["altimeter"] is None:
             altimeter = parse_altimeter(token)
             if altimeter:
                 out["altimeter"] = altimeter
+                i += 1
                 continue
 
         if token == "RMK":
             in_remarks = True
+            i += 1
             continue
 
         out["unparsed_tokens"].append(token)
+        i += 1
 
     out["remarks"] = parse_remarks(remark_tokens)
     return out
@@ -453,40 +518,50 @@ def parse_taf_conditions(tokens: List[str]) -> Dict[str, Any]:
         "unparsed_tokens": [],
     }
 
-    for token in tokens:
+    i = 0
+    while i < len(tokens):
+        token = tokens[i]
+
         if conditions["wind"] is None:
             wind = parse_wind(token)
             if wind:
                 conditions["wind"] = wind
+                i += 1
                 continue
 
         if conditions["visibility"] is None:
-            visibility = parse_visibility(token)
+            visibility, consumed = parse_visibility_tokens(tokens, i)
             if visibility:
                 conditions["visibility"] = visibility
+                i += consumed
                 continue
 
         weather = parse_weather(token)
         if weather:
             conditions["weather"].append(weather)
+            i += 1
             continue
 
         sky = parse_sky(token)
         if sky:
             conditions["sky"].append(sky)
+            i += 1
             continue
 
         altimeter = parse_altimeter(token)
         if altimeter and conditions["altimeter"] is None:
             conditions["altimeter"] = altimeter
+            i += 1
             continue
 
         temp_extreme = parse_temp_extreme(token)
         if temp_extreme:
             conditions["temperatures"].append(temp_extreme)
+            i += 1
             continue
 
         conditions["unparsed_tokens"].append(token)
+        i += 1
 
     return conditions
 
@@ -505,6 +580,10 @@ def parse_taf(report: str) -> Dict[str, Any]:
 
     i = 0
     if tokens and tokens[i] == "TAF":
+        i += 1
+
+    while i < len(tokens) and tokens[i] in TAF_PREFIX_MODIFIERS:
+        out["unparsed_tokens"].append(tokens[i])
         i += 1
 
     if i < len(tokens) and ICAO_RE.match(tokens[i]):
