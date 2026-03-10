@@ -140,11 +140,30 @@ A parsed METAR or SPECI should generally follow this shape:
     "value": 29.93
   },
   "remarks": {
-    "raw_tokens": ["AO2", "SLP138"]
+    "raw_tokens": ["AO2", "SLP138"],
+    "sea_level_pressure": {
+      "raw": "SLP138",
+      "value_hpa": 1013.8
+    },
+    "unparsed_tokens": ["AO2"]
   },
   "unparsed_tokens": []
 }
 ```
+
+### METAR Remark Structure
+Recognized remark groups may be returned as additive structured fields under `remarks` while preserving `raw_tokens`. Unknown remark tokens should remain in `remarks.unparsed_tokens`.
+
+Recommended additive fields include:
+- `sea_level_pressure`
+- `hourly_precipitation`
+- `precipitation_3_6_hour`
+- `precipitation_24_hour`
+- `temperature_6_hour_max`
+- `temperature_6_hour_min`
+- `temperature_24_hour_extremes`
+- `peak_wind`
+- `wind_shift`
 
 ### METAR / SPECI v1 Required Fields
 The parser should support these fields when present:
@@ -161,7 +180,7 @@ The parser should support these fields when present:
 - sky conditions
 - temperature / dew point
 - altimeter
-- remarks after `RMK`
+- remarks after `RMK`, including additive structured fields for recognized groups such as `SLP###`, `P####`, `6####`, `7####`, `1####`, `2####`, `4#######`, `PK WND`, and `WSHFT`
 
 ## TAF JSON Structure
 

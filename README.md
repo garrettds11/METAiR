@@ -34,7 +34,7 @@ Build a v1 parser that:
 - sky conditions
 - temperature / dew point
 - altimeter
-- remarks after `RMK` (preserved as raw tokens)
+- remarks after `RMK` with raw token preservation plus structured support for common groups such as `SLP`, `P`, `6`, `7`, `1`, `2`, `4`, `PK WND`, and `WSHFT`
 
 ### TAF
 
